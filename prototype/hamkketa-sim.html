@@ -116,6 +116,8 @@ header.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;pad
 .userbtns{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-bottom:8px}
 .lang{display:inline-flex;border:1px solid var(--color-border);border-radius:8px;overflow:hidden}
 .lang button{appearance:none;border:0;background:var(--color-background-surface);color:var(--color-text-secondary);font:inherit;font-size:12px;font-weight:700;padding:0 9px;min-height:30px;cursor:pointer}
+.lang .lsh{display:none}
+.lang button{white-space:nowrap}
 .lang button.on{background:var(--color-accent);color:var(--color-on-accent)}
 .menubtn{display:none}
 main{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--spacing-4);padding-block:var(--spacing-4) 48px}
@@ -229,6 +231,7 @@ body.lock{overflow:hidden}
   .brand .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand small{display:none}
   .menubtn{display:inline-flex}
+  header.top .lang .lf{display:none} header.top .lang .lsh{display:inline}
   main>.row.between{flex-direction:column;align-items:stretch}
   main>.row.between>.row .fld{flex:1 1 140px}
   main>.row.between>.row .btn:not(.sm){flex:1 1 auto}
@@ -257,6 +260,7 @@ body.lock{overflow:hidden}
 <div id="app"></div>
 <div id="dlg"></div>
 <div id="toast" aria-live="polite"></div>
+<datalist id="places"><option value="San Salvador"><option value="San Salvador (Metrocentro)"><option value="San Salvador (Centro Histórico)"><option value="San Salvador (Colonia Escalón)"><option value="San Salvador (Centro de Gobierno)"><option value="Santa Tecla"><option value="Antiguo Cuscatlán"><option value="Nuevo Cuscatlán"><option value="Soyapango"><option value="Ilopango"><option value="San Martín"><option value="Mejicanos"><option value="Apopa"><option value="Ciudad Delgado"><option value="San Marcos"><option value="Santa Ana"><option value="San Miguel"><option value="Sonsonate"><option value="La Libertad"><option value="Playa El Tunco"><option value="Zacatecoluca"><option value="Usulután"><option value="Chalatenango"><option value="Ahuachapán"><option value="Aeropuerto Internacional (SAL)"></datalist>
 
 <script>
 (function(){
@@ -265,20 +269,22 @@ body.lock{overflow:hidden}
    함께타 모빌리티 — 카쉐어링 + 카풀 시뮬레이션
    서버(Code.gs) 역할은 SRV 객체가, 스프레드시트 역할은 localStorage가 대신합니다.
    ========================================================= */
-var LS='hkt_db_v1', LSB='hkt_bk_v1', LSID='hkt_saveid', LSL='hkt_lang', SSK='hkt_sess';
+var LS='hkt_sv_db_v1', LSB='hkt_sv_bk_v1', LSID='hkt_saveid', LSL='hkt_lang', SSK='hkt_sess';
 var PEPPER='HKT-PEPPER-SIM', IDLE=30*60*1000, MIN=60e3, HOUR=3600e3, DAY=86400e3;
 
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
 function ss(k,v){try{if(v===undefined)return sessionStorage.getItem(k);if(v===null)sessionStorage.removeItem(k);else sessionStorage.setItem(k,v)}catch(e){return null}}
-var lang=ls(LSL)==='es'?'es':'ko';
+var lang=ls(LSL)==='ko'?'ko':'es';
 function L(ko,es){return lang==='es'?es:ko}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-function won(n){n=Math.round(n||0);return lang==='es'?'₩'+n.toLocaleString('es-ES'):n.toLocaleString('ko-KR')+'원'}
+/* 금액은 모두 미국 달러 '센트' 정수로 저장 (소수점 오차 방지). 1250 → $12.50 */
+function won(n){n=Math.round(n||0);return (n<0?'-':'')+'$'+(Math.abs(n)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function pad(n){return String(n).padStart(2,'0')}
 function ymd(d){d=new Date(d);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
 function hm(d){d=new Date(d);return pad(d.getHours())+':'+pad(d.getMinutes())}
 var DOW={ko:['일','월','화','수','목','금','토'],es:['dom','lun','mar','mié','jue','vie','sáb']};
-function fdt(ms){var d=new Date(ms);return (d.getMonth()+1)+'/'+d.getDate()+'('+DOW[lang][d.getDay()]+') '+hm(d)}
+function dm(d){d=new Date(d);return lang==='es'?DOW.es[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1):(d.getMonth()+1)+'/'+d.getDate()+'('+DOW.ko[d.getDay()]+')'}
+function fdt(ms){return dm(ms)+' '+hm(ms)}
 function rnd(n){var a=new Uint8Array(n);crypto.getRandomValues(a);return Array.prototype.map.call(a,function(x){return x.toString(16).padStart(2,'0')}).join('')}
 function uid(p){return p+Date.now().toString(36)+rnd(2)}
 /* 모의 해시: 솔트+페퍼+2000회 반복 (실제 GAS에서는 Utilities.computeDigest SHA-256 반복) */
@@ -295,15 +301,14 @@ var ERR={
  PWMATCH:['새 비밀번호 두 칸이 서로 다릅니다.','Las dos contraseñas nuevas no coinciden.'],
  PWOLD:['현재 비밀번호가 맞지 않습니다.','La contraseña actual no es correcta.'],
  LICENSE:['운전면허를 먼저 등록해 주세요. (내 정보 → 운전면허)','Registre primero su licencia (Mi cuenta → Licencia).'],
- LICRULE:['만 21세 이상이고 면허를 딴 지 1년이 지나야 차량을 이용할 수 있습니다.','Debe tener 21 años o más y al menos 1 año de licencia.'],
- LICFMT:['면허번호는 00-00-000000-00 형식으로 입력하세요.','Escriba la licencia con el formato 00-00-000000-00.'],
+ LICRULE:['서비스 정책상 만 21세 이상, 면허 취득 1년 이상이어야 차량을 이용할 수 있습니다.','Por política del servicio debe tener 21 años o más y al menos 1 año de licencia.'],
+ LICFMT:['엘살바도르 면허는 DUI 번호(00000000-0), 외국 면허는 영문·숫자 5~20자로 입력하세요.','Licencia salvadoreña: número de DUI (00000000-0). Extranjera: 5-20 letras o números.'],
  CARD:['결제 카드를 먼저 등록해 주세요. (내 정보 → 결제 카드)','Registre primero una tarjeta (Mi cuenta → Tarjeta).'],
  TAKEN:['선택한 시간에 이미 예약된 차량입니다. 다른 차량이나 시간을 고르세요.','Ese vehículo ya está reservado en ese horario. Elija otro vehículo u hora.'],
  PAST:['지금 이후의 시작 시간을 고르세요.','Elija una hora de inicio futura.'],
  SEATS:['남은 좌석이 부족합니다.','No quedan asientos suficientes.'],
  OWN:['내가 등록한 운행에는 탑승 요청을 할 수 없습니다.','No puede solicitar plaza en su propio viaje.'],
  DUP:['이미 요청한 운행입니다. 내 카풀에서 상태를 확인하세요.','Ya solicitó este viaje. Revise «Mis viajes».'],
- COMMUTE:['카풀은 평일 출퇴근 시간(07:00~09:00, 18:00~20:00)에만 등록할 수 있습니다. (여객자동차운수사업법 제81조)','El carpool solo se permite en días laborables de 07:00 a 09:00 y de 18:00 a 20:00 (ley coreana de transporte, art. 81).'],
  INPUT:['입력값을 확인해 주세요: {0}','Revise los datos: {0}'],
  ID:['아이디는 영문 소문자로 시작하는 4~16자(영문 소문자·숫자·_)로 만드세요.','El usuario debe tener 4-16 caracteres (minúsculas, números, _) y empezar por letra.'],
  EXISTS:['이미 있는 아이디입니다.','Ese usuario ya existe.'],
@@ -320,44 +325,50 @@ function nextWeekday(addDays,h,m){var d=new Date();d.setHours(0,0,0,0);d.setDate
 function seed(){
  var now=Date.now();
  function mk(id,name,email,role,pw,first,perms,extra){var salt=rnd(8);var u={id:id,name:name,email:email,role:role,salt:salt,hash:hash(pw,salt),first:first,fails:0,locked:false,perms:perms,license:null,card:null,points:0,created:now};for(var k in extra)u[k]=extra[k];return u}
- var lic={no:'11-15-123456-01',issued:'2015-03-02',birth:'1988-05-05',ok:true};
+ var lic={kind:'sv',no:'04512345-6',issued:'2014-03-02',birth:'1990-05-05',ok:true};
  var users=[
-  mk('admin','운영관리자','admin@example.com','admin','Admin!234',false,{share:'w',pool:'w'},{license:lic,card:'4321',points:3200}),
-  mk('user1','김민준','minjun@example.com','user','User!234',false,{share:'w',pool:'w'},{license:lic,card:'1188',points:1250}),
-  mk('driver1','이서연','seoyeon@example.com','user','User!234',false,{share:'w',pool:'w'},{license:lic,card:'7702',points:540}),
-  mk('newbie','박지훈','jihoon@example.com','user','Temp!234',true,{share:'r',pool:'w'},{})
+  mk('admin','Operaciones Hamkketa','admin@example.com','admin','Admin!234',false,{share:'w',pool:'w'},{license:lic,card:'4321',points:320}),
+  mk('user1','Carlos Hernández','carlos@example.com','user','User!234',false,{share:'w',pool:'w'},{license:lic,card:'1188',points:1250}),
+  mk('driver1','María José Martínez','mariajose@example.com','user','User!234',false,{share:'w',pool:'w'},{license:lic,card:'7702',points:540}),
+  mk('newbie','Diego Ramírez','diego@example.com','user','Temp!234',true,{share:'r',pool:'w'},{})
  ];
+ /* 존: 실제 위경도(근사값). 지역 표기 = 구 시(현 distrito) · 2024년 개편 무니시피오 */
  var zones=[
-  {id:'z1',name:'강남역 2번 출구',es:'Gangnam Est. salida 2',area:'강남구',x:262,y:196},
-  {id:'z2',name:'역삼 공영주차장',es:'Parking público Yeoksam',area:'강남구',x:292,y:206},
-  {id:'z3',name:'홍대입구역 9번 출구',es:'Hongik Univ. salida 9',area:'마포구',x:86,y:96},
-  {id:'z4',name:'여의도 IFC 지하 3층',es:'Yeouido IFC sótano 3',area:'영등포구',x:138,y:150},
-  {id:'z5',name:'잠실역 롯데 주차장',es:'Parking Jamsil Lotte',area:'송파구',x:352,y:178},
-  {id:'z6',name:'광화문 D타워',es:'Gwanghwamun D Tower',area:'종로구',x:182,y:62},
-  {id:'z7',name:'판교역 공영주차장',es:'Parking público Pangyo',area:'성남시',x:318,y:262}
+  {id:'z1',name:'Centro Histórico · Catedral',area:'San Salvador · San Salvador Centro',lat:13.6985,lon:-89.1914,city:'metro'},
+  {id:'z2',name:'Metrocentro San Salvador',area:'San Salvador · San Salvador Centro',lat:13.7056,lon:-89.2118,city:'metro'},
+  {id:'z3',name:'Zona Rosa · Col. San Benito',area:'San Salvador · San Salvador Centro',lat:13.6935,lon:-89.2390,city:'metro'},
+  {id:'z4',name:'Multiplaza',area:'Antiguo Cuscatlán · La Libertad Este',lat:13.6780,lon:-89.2530,city:'metro'},
+  {id:'z5',name:'Paseo El Carmen',area:'Santa Tecla · La Libertad Sur',lat:13.6735,lon:-89.2870,city:'metro'},
+  {id:'z6',name:'Plaza Mundo Soyapango',area:'Soyapango · San Salvador Este',lat:13.7016,lon:-89.1525,city:'metro'},
+  {id:'z7',name:'Metrocentro Santa Ana',area:'Santa Ana · Santa Ana Centro',lat:13.9930,lon:-89.5680,city:'sa'},
+  {id:'z8',name:'Metrocentro San Miguel',area:'San Miguel · San Miguel Centro',lat:13.4830,lon:-88.1800,city:'sm'},
+  {id:'z9',name:'Playa El Tunco',area:'Tamanique · La Libertad Costa',lat:13.4935,lon:-89.3830,city:'lib'},
+  {id:'z10',name:'Aeropuerto Internacional (SAL)',area:'San Luis Talpa · La Paz Oeste',lat:13.4409,lon:-89.0557,city:'apt'}
  ];
- /* 차종별 요금: 10분 대여료 / km당 주행요금 */
+ /* 차종별 요금(센트): 10분 대여료 / km당 주행요금 */
  var cars=[
-  ['c1','z1','레이','경차','12가 3456',1100,170,82],['c2','z1','아반떼','준중형','34나 1209',1500,190,64],['c3','z1','아이오닉 5','전기','56다 7781',2000,90,91],
-  ['c4','z2','캐스퍼','경차','21라 4410',1100,170,55],['c5','z2','쏘렌토','SUV','78마 2022',2300,230,73],
-  ['c6','z3','아반떼','준중형','90바 1133',1500,190,48],['c7','z3','K5','중형','11사 8890',1800,210,88],
-  ['c8','z4','아이오닉 5','전기','22아 5051',2000,90,67],['c9','z4','K5','중형','33자 6262',1800,210,40],
-  ['c10','z5','쏘렌토','SUV','44차 7373',2300,230,95],['c11','z5','레이','경차','55카 8484',1100,170,30],
-  ['c12','z6','캐스퍼','경차','66타 9595',1100,170,77],['c13','z7','아이오닉 5','전기','77파 1616',2000,90,58],['c14','z7','아반떼','준중형','88하 2727',1500,190,81]
+  ['c1','z1','Kia Picanto','compact','P 512-345',90,15,82],['c2','z2','Toyota Yaris','sedan','P 734-120',110,17,64],['c3','z2','BYD Dolphin','ev','P 881-907',140,8,91],
+  ['c4','z3','Hyundai Accent','sedan','P 220-441',110,17,55],['c5','z3','Toyota RAV4','suv','P 678-202',170,22,73],
+  ['c6','z4','Kia Picanto','compact','P 390-113',90,15,48],['c7','z4','Nissan Sentra','sedan','P 118-889',110,17,88],
+  ['c8','z5','BYD Dolphin','ev','P 452-505',140,8,67],['c9','z5','Toyota Hilux','pickup','P 336-262',180,24,40],
+  ['c10','z6','Hyundai Accent','sedan','P 447-373',110,17,95],['c11','z7','Toyota Hilux','pickup','P 558-484',180,24,30],
+  ['c12','z7','Kia Picanto','compact','P 669-595',90,15,77],['c13','z8','Mitsubishi Montero Sport','suv','P 771-616',170,22,58],
+  ['c14','z9','Toyota RAV4','suv','P 882-727',170,22,81],['c15','z10','Toyota Yaris','sedan','P 993-838',110,17,90],['c16','z10','Toyota RAV4','suv','P 104-949',170,22,86]
  ].map(function(r){return{id:r[0],zone:r[1],model:r[2],type:r[3],plate:r[4],rate10:r[5],km:r[6],fuel:r[7],status:'ok'}});
  cars[8].status='maint';
  var st=Math.ceil((now+2*HOUR)/(30*MIN))*30*MIN;
  var bookings=[
-  {id:'b1',user:'user1',car:'c2',start:st,end:st+3*HOUR,ins:'std',rent:27000,insFee:3000,pts:0,total:30000,status:'reserved',km:0,kmFee:0,created:now},
-  {id:'b0',user:'user1',car:'c8',start:now-6*DAY,end:now-6*DAY+4*HOUR,ins:'lite',rent:48000,insFee:0,pts:0,total:48000,status:'done',km:42,kmFee:3780,created:now-7*DAY},
-  {id:'b9',user:'driver1',car:'c1',start:now-3*DAY,end:now-3*DAY+2*HOUR,ins:'super',rent:13200,insFee:4000,pts:0,total:17200,status:'done',km:18,kmFee:3060,created:now-3*DAY}
+  {id:'b1',user:'user1',car:'c2',start:st,end:st+3*HOUR,ins:'std',rent:1980,insFee:300,pts:0,total:2280,status:'reserved',km:0,kmFee:0,created:now},
+  {id:'b0',user:'user1',car:'c14',start:now-6*DAY,end:now-6*DAY+6*HOUR,ins:'lite',rent:6120,insFee:0,pts:0,total:6120,status:'done',km:74,kmFee:1628,created:now-7*DAY},
+  {id:'b9',user:'driver1',car:'c1',start:now-3*DAY,end:now-3*DAY+2*HOUR,ins:'super',rent:1080,insFee:400,pts:0,total:1480,status:'done',km:18,kmFee:270,created:now-3*DAY}
  ];
  var rides=[
-  {id:'r1',driver:'driver1',from:'판교역 1번 출구',to:'강남역 사거리',depart:nextWeekday(1,7,50),seats:3,price:4000,car:'아반떼 (흰색)',note:'정시 출발, 조용히 갑니다',status:'open'},
-  {id:'r2',driver:'driver1',from:'강남역 사거리',to:'판교역 1번 출구',depart:nextWeekday(1,18,40),seats:3,price:4000,car:'아반떼 (흰색)',note:'',status:'open'},
-  {id:'r3',driver:'admin',from:'일산 주엽역',to:'여의도 IFC',depart:nextWeekday(1,7,20),seats:2,price:6000,car:'K5 (회색)',note:'자유로 경유',status:'open'},
-  {id:'r4',driver:'admin',from:'수원 영통역',to:'삼성역 코엑스',depart:nextWeekday(2,7,30),seats:4,price:5500,car:'쏘렌토 (검정)',note:'짐 많으면 미리 알려 주세요',status:'open'},
-  {id:'r5',driver:'user1',from:'잠실역 8번 출구',to:'광화문 D타워',depart:nextWeekday(2,8,0),seats:2,price:4500,car:'캐스퍼 (하늘색)',note:'',status:'open'}
+  {id:'r1',driver:'driver1',from:'Santa Tecla (Paseo El Carmen)',to:'San Salvador (Torre Futura, Escalón)',depart:nextWeekday(1,6,50),seats:3,price:150,car:'Toyota Corolla blanco',note:'Salgo puntual, paso por la Panamericana',status:'open'},
+  {id:'r2',driver:'driver1',from:'San Salvador (Torre Futura, Escalón)',to:'Santa Tecla (Paseo El Carmen)',depart:nextWeekday(1,17,30),seats:3,price:150,car:'Toyota Corolla blanco',note:'',status:'open'},
+  {id:'r3',driver:'admin',from:'Santa Ana (Catedral)',to:'San Salvador (Metrocentro)',depart:nextWeekday(1,5,45),seats:2,price:400,car:'Hyundai Tucson gris',note:'Por la carretera CA-1',status:'open'},
+  {id:'r4',driver:'admin',from:'San Miguel (Parque Guzmán)',to:'San Salvador (Centro de Gobierno)',depart:nextWeekday(2,4,30),seats:4,price:800,car:'Toyota Hilux negra',note:'Avise si lleva equipaje',status:'open'},
+  {id:'r5',driver:'user1',from:'Soyapango (Plaza Mundo)',to:'Antiguo Cuscatlán (UCA)',depart:nextWeekday(2,6,30),seats:2,price:125,car:'Kia Rio celeste',note:'',status:'open'},
+  {id:'r6',driver:'driver1',from:'La Libertad (Playa El Tunco)',to:'Antiguo Cuscatlán (Multiplaza)',depart:nextWeekday(3,7,0),seats:3,price:300,car:'Toyota Corolla blanco',note:'Hay espacio para una tabla de surf',status:'open'}
  ];
  var reqs=[
   {id:'q1',ride:'r1',user:'user1',seats:1,status:'pending',created:now-HOUR},
@@ -381,14 +392,14 @@ function U(id){return DB.users.filter(function(u){return u.id===id})[0]}
 function car(id){return DB.cars.filter(function(c){return c.id===id})[0]}
 function zone(id){return DB.zones.filter(function(z){return z.id===id})[0]}
 function ride(id){return DB.rides.filter(function(r){return r.id===id})[0]}
-function zname(z){return lang==='es'?z.es:z.name}
-var INS={lite:{ko:'라이트',es:'Básico',ded:700000,ph:0},std:{ko:'스탠다드',es:'Estándar',ded:300000,ph:1000},super:{ko:'슈퍼',es:'Súper',ded:50000,ph:2000}};
-var TYPE_ES={'경차':'Compacto','준중형':'Mediano','중형':'Berlina','SUV':'SUV','전기':'Eléctrico'};
-function tname(t){return lang==='es'?TYPE_ES[t]:t}
+function zname(z){return z.name}
+var INS={lite:{ko:'라이트',es:'Básica',ded:100000,ph:0},std:{ko:'스탠다드',es:'Estándar',ded:50000,ph:100},super:{ko:'슈퍼',es:'Súper',ded:10000,ph:200}};
+/* 차급별 이름과 요금표(센트): [10분, km] */
+var TYPES={compact:{ko:'경차',es:'Compacto',rate:[90,15]},sedan:{ko:'세단',es:'Sedán',rate:[110,17]},suv:{ko:'SUV',es:'SUV',rate:[170,22]},pickup:{ko:'픽업',es:'Pick-up',rate:[180,24]},ev:{ko:'전기차',es:'Eléctrico',rate:[140,8]}};
+function tname(t){return TYPES[t]?TYPES[t][lang]:t}
 function overlap(c,s,e,skip){return DB.bookings.some(function(b){return b.car===c&&b.id!==skip&&(b.status==='reserved'||b.status==='inuse')&&b.start<e&&s<b.end})}
 function quote(c,s,e,ins,pts){var min=(e-s)/MIN;var rent=Math.ceil(min/10)*c.rate10;var insFee=Math.ceil(min/60)*INS[ins].ph;var sub=rent+insFee;pts=Math.max(0,Math.min(pts||0,sub));return{rent:rent,insFee:insFee,pts:pts,total:sub-pts}}
 function seatsLeft(r){return r.seats-DB.reqs.filter(function(q){return q.ride===r.id&&q.status==='accepted'}).reduce(function(a,q){return a+q.seats},0)}
-function isCommute(ms){var d=new Date(ms),w=d.getDay(),t=d.getHours()*60+d.getMinutes();return w>=1&&w<=5&&((t>=420&&t<=540)||(t>=1080&&t<=1200))}
 function age(birth,at){var b=new Date(birth),a=new Date(at),y=a.getFullYear()-b.getFullYear();if(a.getMonth()<b.getMonth()||(a.getMonth()===b.getMonth()&&a.getDate()<b.getDate()))y--;return y}
 function pub(u){return{id:u.id,name:u.name,role:u.role,perms:u.perms,license:u.license?{ok:u.license.ok,no:u.license.no.replace(/\d{6}/,'******')}:null,card:u.card,points:u.points}}
 var OTPS={};
@@ -427,8 +438,8 @@ var SRV={
   if(DB.reqs.some(function(q){return q.ride===r.id&&q.user===u.id&&(q.status==='pending'||q.status==='accepted')}))throw E('DUP');if(n>seatsLeft(r))throw E('SEATS');if(!u.card)throw E('CARD');
   var q={id:uid('q'),ride:r.id,user:u.id,seats:n,status:'pending',created:Date.now(),msg:clean(a.msg,80)};DB.reqs.push(q);return q},
  postRide:function(u,a){if(!u.license||!u.license.ok)throw E('LICENSE');var from=clean(a.from,40),to=clean(a.to,40);if(!from||!to)throw E('INPUT',L('출발지/도착지','origen/destino'));
-  var dep=+a.depart;if(!(dep>Date.now()))throw E('PAST');if(!isCommute(dep))throw E('COMMUTE');var seats=Math.round(+a.seats),price=Math.round(+a.price);
-  if(!(seats>=1&&seats<=4))throw E('INPUT',L('좌석','asientos'));if(!(price>=1000&&price<=30000))throw E('INPUT',L('요금 1,000~30,000원','tarifa 1.000-30.000'));
+  var dep=+a.depart;if(!(dep>Date.now()))throw E('PAST');var seats=Math.round(+a.seats),price=Math.round(+a.price);
+  if(!(seats>=1&&seats<=4))throw E('INPUT',L('좌석','asientos'));if(!(price>=50&&price<=3000))throw E('INPUT',L('1인 요금 $0.50~$30.00','precio $0.50-$30.00'));
   var r={id:uid('r'),driver:u.id,from:from,to:to,depart:dep,seats:seats,price:price,car:clean(a.car,30),note:clean(a.note,80),status:'open'};DB.rides.push(r);return r},
  myRides:function(u){return DB.rides.filter(function(r){return r.driver===u.id&&r.status==='open'}).sort(function(a,b){return a.depart-b.depart}).map(function(r){return{r:r,left:seatsLeft(r),reqs:DB.reqs.filter(function(q){return q.ride===r.id&&q.status!=='cancel'}).map(function(q){return{q:q,name:U(q.user).name}})}})},
  decideReq:function(u,a){var q=DB.reqs.filter(function(x){return x.id===a.id})[0];if(!q)throw E('NOTFOUND');var r=ride(q.ride);if(r.driver!==u.id)throw E('PERM');if(q.status!=='pending')throw E('STATE');
@@ -436,8 +447,8 @@ var SRV={
  cancelReq:function(u,a){var q=DB.reqs.filter(function(x){return x.id===a.id&&x.user===u.id})[0];if(!q)throw E('NOTFOUND');if(q.status!=='pending'&&q.status!=='accepted')throw E('STATE');q.status='cancel';return q},
  completeRide:function(u,a){var r=ride(a.id);if(!r||r.driver!==u.id)throw E('NOTFOUND');if(r.status!=='open')throw E('STATE');r.status='done';var earn=0;DB.reqs.forEach(function(q){if(q.ride===r.id){if(q.status==='accepted'){q.status='done';earn+=q.seats*r.price}else if(q.status==='pending')q.status='rejected'}});return{earn:earn}},
  cancelRide:function(u,a){var r=ride(a.id);if(!r||r.driver!==u.id)throw E('NOTFOUND');if(r.status!=='open')throw E('STATE');r.status='cancel';DB.reqs.forEach(function(q){if(q.ride===r.id&&(q.status==='pending'||q.status==='accepted'))q.status='cancel'});return{ok:true}},
- saveLicense:function(u,a){var no=String(a.no||'').trim();if(!/^\d{2}-\d{2}-\d{6}-\d{2}$/.test(no))throw E('LICFMT');if(!/^\d{4}-\d{2}-\d{2}$/.test(a.issued||'')||!/^\d{4}-\d{2}-\d{2}$/.test(a.birth||''))throw E('INPUT',L('날짜','fecha'));
-  var ok=age(a.birth,Date.now())>=21&&(Date.now()-new Date(a.issued).getTime())>=365*DAY;u.license={no:no,issued:a.issued,birth:a.birth,ok:ok};if(!ok)throw E('LICRULE');return pub(u)},
+ saveLicense:function(u,a){var no=String(a.no||'').trim().toUpperCase(),kind=a.kind==='ext'?'ext':'sv';if(kind==='sv'?!/^\d{8}-\d$/.test(no):!/^[A-Z0-9-]{5,20}$/.test(no))throw E('LICFMT');if(!/^\d{4}-\d{2}-\d{2}$/.test(a.issued||'')||!/^\d{4}-\d{2}-\d{2}$/.test(a.birth||''))throw E('INPUT',L('날짜','fecha'));
+  var ok=age(a.birth,Date.now())>=21&&(Date.now()-new Date(a.issued).getTime())>=365*DAY;u.license={kind:kind,no:no,issued:a.issued,birth:a.birth,ok:ok};if(!ok)throw E('LICRULE');return pub(u)},
  saveCard:function(u,a){var n=String(a.no||'').replace(/\D/g,'');if(n.length<15||n.length>16)throw E('INPUT',L('카드번호','número de tarjeta'));u.card=n.slice(-4);return pub(u)},
  changePw:function(u,a){if(hash(a.old||'',u.salt)!==u.hash)throw E('PWOLD');if(!PWRE.test(a.pw||''))throw E('PWRULE');if(a.pw!==a.pw2)throw E('PWMATCH');u.salt=rnd(8);u.hash=hash(a.pw,u.salt);return{ok:true}},
  /* 관리자 전용 */
@@ -451,7 +462,7 @@ var SRV={
  admCars:function(){return{cars:DB.cars.map(function(c){var z=zone(c.zone);return{c:c,zone:zname(z),busy:DB.bookings.some(function(b){return b.car===c.id&&b.status==='inuse'}),cnt:DB.bookings.filter(function(b){return b.car===c.id&&b.status!=='cancel'}).length}}),zones:DB.zones}},
  admSetCar:function(me,a){var c=car(a.id);if(!c)throw E('NOTFOUND');c.status=c.status==='ok'?'maint':'ok';return c},
  admAddCar:function(me,a){var z=zone(a.zone);if(!z)throw E('NOTFOUND');var plate=clean(a.plate,12),model=clean(a.model,20);if(!plate||!model)throw E('INPUT',L('차종/번호판','modelo/matrícula'));
-  var RATE={'경차':[1100,170],'준중형':[1500,190],'중형':[1800,210],'SUV':[2300,230],'전기':[2000,90]}[a.type];if(!RATE)throw E('INPUT');
+  var RATE=TYPES[a.type]&&TYPES[a.type].rate;if(!RATE)throw E('INPUT');
   var c={id:uid('c'),zone:z.id,model:model,type:a.type,plate:plate,rate10:RATE[0],km:RATE[1],fuel:100,status:'ok'};DB.cars.push(c);return c},
  admStats:function(){var now=Date.now(),m0=new Date();m0.setDate(1);m0.setHours(0,0,0,0);var done=DB.bookings.filter(function(b){return b.status==='done'});
   return{users:DB.users.length,inuse:DB.bookings.filter(function(b){return b.status==='inuse'}).length,reserved:DB.bookings.filter(function(b){return b.status==='reserved'}).length,
@@ -478,7 +489,7 @@ function api(fn,args){busy++;$('#bar').hidden=false;return new Promise(function(
 /* ---------- 화면 상태 ---------- */
 function $(s){return document.querySelector(s)}
 var now0=new Date();now0.setMinutes(Math.ceil((now0.getMinutes()+20)/10)*10,0,0);
-var S={me:null,tab:'home',pool:'find',adm:'users',auth:'login',otp:null,date:ymd(now0),time:hm(now0),dur:120,zone:'z1',find:{from:'',to:''},data:{}};
+var S={me:null,tab:'home',pool:'find',adm:'users',auth:'login',otp:null,date:ymd(now0),time:hm(now0),dur:120,zone:'z2',mapv:'metro',find:{from:'',to:''},data:{}};
 function selRange(){var s=new Date(S.date+'T'+S.time).getTime();return{start:s,end:s+S.dur*MIN}}
 function toast(m){var d=document.createElement('div');d.textContent=m;$('#toast').appendChild(d);setTimeout(function(){d.remove()},2800)}
 function fail(e){if(e&&e.code==='SESSION'){S.me=null;S.auth='login';render()}toast(errMsg(e))}
@@ -487,7 +498,7 @@ function can(mod){return S.me&&S.me.perms[mod]==='w'}
 var TABS=function(){var t=[['home',L('홈','Inicio')],['share',L('카쉐어링','Carsharing')],['pool',L('카풀','Carpool')],['trips',L('이용내역','Historial')],['my',L('내 정보','Mi cuenta')]];if(S.me&&S.me.role==='admin')t.push(['admin',L('관리자','Admin')]);return t};
 
 var LOGO='<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#0064E0"/><path d="M7 19.5l2.2-5.6A2.5 2.5 0 0 1 11.5 12.3h9a2.5 2.5 0 0 1 2.3 1.6l2.2 5.6v3.2a1 1 0 0 1-1 1h-1.6a1 1 0 0 1-1-1v-1.2h-10.8v1.2a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z" fill="#fff"/><circle cx="11.2" cy="19.4" r="1.4" fill="#0064E0"/><circle cx="20.8" cy="19.4" r="1.4" fill="#0064E0"/><circle cx="13.3" cy="8" r="2" fill="#7CC4FF"/><circle cx="18.7" cy="8" r="2" fill="#fff"/></svg>';
-function langSw(){return '<div class="lang" role="group" aria-label="Language"><button data-act="lang" data-v="ko" class="'+(lang==='ko'?'on':'')+'">한국어</button><button data-act="lang" data-v="es" class="'+(lang==='es'?'on':'')+'">Español</button></div>'}
+function langSw(){return '<div class="lang" role="group" aria-label="Language"><button data-act="lang" data-v="ko" class="'+(lang==='ko'?'on':'')+'"><span class="lf">한국어</span><span class="lsh">KO</span></button><button data-act="lang" data-v="es" class="'+(lang==='es'?'on':'')+'"><span class="lf">Español</span><span class="lsh">ES</span></button></div>'}
 
 /* ---------- 렌더 ---------- */
 function render(){
@@ -519,7 +530,7 @@ function vHome(){
  api('home').then(function(d){
   var h=head(L('안녕하세요, ','Hola, ')+esc(S.me.name)+L('님','') ,L('필요할 때 10분 단위로 빌리고, 출퇴근길은 함께 타세요.','Alquile por tramos de 10 minutos y comparta el trayecto al trabajo.'));
   h+='<div class="hero"><button class="entry" data-tab="share"><svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><rect width="56" height="56" rx="14" fill="var(--color-accent-muted)"/><path d="M12 33l3.5-9a4 4 0 0 1 3.7-2.6h17.6a4 4 0 0 1 3.7 2.6L44 33v5a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 38 38v-1.5H18V38a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 12 38z" fill="var(--color-accent)"/><circle cx="18.5" cy="32" r="2.2" fill="var(--color-background-card)"/><circle cx="37.5" cy="32" r="2.2" fill="var(--color-background-card)"/></svg><div><div class="big">'+L('카쉐어링','Carsharing')+'</div><p class="muted">'+L('가까운 존에서 바로 빌리고 같은 존에 반납','Recoja en una zona cercana y devuélvalo allí')+'</p></div></button>'
-   +'<button class="entry" data-tab="pool"><svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><rect width="56" height="56" rx="14" fill="var(--color-success-muted)"/><circle cx="21" cy="21" r="6" fill="var(--color-success)"/><circle cx="35" cy="21" r="6" fill="var(--color-success)" opacity=".55"/><path d="M11 41c0-6 4.5-10 10-10s10 4 10 10z" fill="var(--color-success)"/><path d="M25 41c0-6 4.5-10 10-10s10 4 10 10z" fill="var(--color-success)" opacity=".55"/></svg><div><div class="big">'+L('카풀','Carpool')+'</div><p class="muted">'+L('평일 출퇴근 시간, 같은 방향 이웃과 함께','Días laborables en hora punta, con vecinos que van al mismo sitio')+'</p></div></button></div>';
+   +'<button class="entry" data-tab="pool"><svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><rect width="56" height="56" rx="14" fill="var(--color-success-muted)"/><circle cx="21" cy="21" r="6" fill="var(--color-success)"/><circle cx="35" cy="21" r="6" fill="var(--color-success)" opacity=".55"/><path d="M11 41c0-6 4.5-10 10-10s10 4 10 10z" fill="var(--color-success)"/><path d="M25 41c0-6 4.5-10 10-10s10 4 10 10z" fill="var(--color-success)" opacity=".55"/></svg><div><div class="big">'+L('카풀','Carpool')+'</div><p class="muted">'+L('같은 방향 사람과 기름값·통행료를 나눠 내기','Comparta gasolina y peaje con quien va hacia el mismo lugar')+'</p></div></button></div>';
   if(d.pending)h+='<div class="banner warning"><span class="ic">!</span><span>'+L('내 운행에 수락을 기다리는 탑승 요청이 <b>'+d.pending+'건</b> 있습니다.','Tiene <b>'+d.pending+'</b> solicitud(es) pendiente(s) en sus viajes.')+'</span><button class="btn sm" data-act="go" data-v="pool:mine">'+L('확인','Ver')+'</button></div>';
   h+='<h2>'+L('내 예약','Mis reservas')+'</h2>';
   h+=d.active.length?'<div class="grid">'+d.active.map(bookingCard).join('')+'</div>':'<div class="card muted">'+L('예정된 카쉐어링 예약이 없습니다. 카쉐어링 메뉴에서 존과 시간을 골라 보세요.','No tiene reservas. Elija zona y horario en Carsharing.')+'</div>';
@@ -529,14 +540,45 @@ function vHome(){
  }).catch(fail)}
 
 /* 지도 */
+/* 투영: 위경도 → SVG 좌표 (단순 등장방형 투영, 축척 대략 맞춤) */
+function pMetro(lat,lon){return[(lon+89.32)/0.20*400,(13.77-lat)/0.14*280]}
+function pPais(lat,lon){return[(lon+90.15)*160,(14.47-lat)*163]}
+function path(pts,f,close){return pts.map(function(p,i){var q=f(p[0],p[1]);return(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)}).join(' ')+(close?' Z':'')}
+/* 국경선(근사): 과테말라 국경 → 온두라스 국경 → 폰세카만 → 태평양 해안 */
+var SV_OUTLINE=[[13.745,-90.125],[13.83,-90.03],[13.92,-89.88],[14.0,-89.75],[14.10,-89.66],[14.25,-89.55],[14.42,-89.36],[14.37,-89.20],[14.30,-89.05],[14.25,-88.85],[14.15,-88.70],[14.08,-88.50],[13.98,-88.35],[13.95,-88.15],[13.88,-87.98],[13.80,-87.82],[13.62,-87.80],[13.42,-87.78],[13.30,-87.83],[13.16,-87.90],[13.17,-88.15],[13.20,-88.45],[13.22,-88.60],[13.30,-88.90],[13.39,-89.10],[13.48,-89.30],[13.53,-89.55],[13.59,-89.83],[13.70,-90.00]];
+var CITY={metro:{lat:13.693,lon:-89.218,ko:'산살바도르 수도권',es:'Gran San Salvador'},sa:{ko:'산타아나',es:'Santa Ana'},sm:{ko:'산미겔',es:'San Miguel'},lib:{ko:'라리베르타드 해변',es:'Costa de La Libertad',ly:27,anchor:'end',lx:6},apt:{ko:'국제공항',es:'Aeropuerto',ly:27}};
+function mapTxt(x,y,t,sz,anchor){return '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" font-size="'+(sz||9)+'" font-weight="700" text-anchor="'+(anchor||'middle')+'" fill="var(--color-text-secondary)" style="paint-order:stroke;stroke:var(--map-land);stroke-width:3px">'+t+'</text>'}
+function pinSvg(id,act,xy,n,on,none,label,pos){pos=pos||{};return '<g class="pin'+(on?' on':'')+(none?' none':'')+'" data-act="'+act+'" data-v="'+id+'" tabindex="0" role="button" aria-label="'+esc(label)+'"><circle class="dot" cx="'+xy[0].toFixed(1)+'" cy="'+xy[1].toFixed(1)+'" r="'+(on?13:11)+'"/><text x="'+xy[0].toFixed(1)+'" y="'+(xy[1]+4).toFixed(1)+'" text-anchor="middle">'+n+'</text>'+(label&&(on||S.mapv==='pais')?'<text class="lbl" x="'+(xy[0]+(pos.lx||0)).toFixed(1)+'" y="'+(xy[1]+(pos.ly||-17)).toFixed(1)+'" text-anchor="'+(pos.anchor||'middle')+'">'+esc(label)+'</text>':'')+'</g>'}
 function mapSvg(zs){
- var roads='M0 120 H400 M200 0 V280 M40 0 L120 280 M0 230 L400 200 M260 0 C 250 100, 300 180, 330 280 M0 40 C120 60, 280 40, 400 70';
- var h='<svg viewBox="0 0 400 280" role="img" aria-label="'+L('서울 대여 존 지도','Mapa de zonas de Seúl')+'"><rect width="400" height="280" fill="var(--map-land)"/>'
- +'<ellipse cx="190" cy="40" rx="50" ry="22" fill="var(--map-park)"/><ellipse cx="370" cy="110" rx="34" ry="18" fill="var(--map-park)"/>'
- +'<path d="'+roads+'" stroke="var(--map-road-edge)" stroke-width="9" fill="none"/><path d="'+roads+'" stroke="var(--map-road)" stroke-width="6" fill="none"/>'
- +'<path d="M0 168 C 60 140, 110 178, 170 162 S 260 128, 320 150 S 380 165, 400 150" stroke="var(--map-river)" stroke-width="20" fill="none"/>'
- +'<text x="56" y="182" font-size="10" font-weight="700" fill="var(--color-text-secondary)" opacity=".8">'+L('한강','Río Han')+'</text>';
- zs.forEach(function(x){var on=x.z.id===S.zone;h+='<g class="pin'+(on?' on':'')+(x.avail?'':' none')+'" data-act="zone" data-v="'+x.z.id+'" tabindex="0" role="button" aria-label="'+esc(zname(x.z))+'"><circle class="dot" cx="'+x.z.x+'" cy="'+x.z.y+'" r="'+(on?13:11)+'"/><text x="'+x.z.x+'" y="'+(x.z.y+4)+'" text-anchor="middle">'+x.avail+'</text>'+(on?'<text class="lbl" x="'+x.z.x+'" y="'+(x.z.y-18)+'" text-anchor="middle">'+esc(zname(x.z))+'</text>':'')+'</g>'});
+ if(S.mapv==='pais'){
+  var h='<svg viewBox="0 0 400 220" role="img" aria-label="'+L('엘살바도르 전국 대여 존 지도','Mapa de zonas de El Salvador')+'"><rect width="400" height="220" fill="var(--map-river)"/>'
+   +'<path d="M0 0 H400 V95 L'+pPais(13.80,-87.82).join(' ')+' L'+pPais(14.42,-89.36).join(' ')+' L'+pPais(13.745,-90.125).join(' ')+' L0 130 Z" fill="var(--map-park)" opacity=".55"/>'
+   +'<path d="'+path(SV_OUTLINE,pPais,true)+'" fill="var(--map-land)" stroke="var(--color-text-secondary)" stroke-width="1.2" stroke-linejoin="round"/>';
+  var il=pPais(13.67,-89.05),co=pPais(13.86,-89.55);
+  h+='<ellipse cx="'+il[0]+'" cy="'+il[1]+'" rx="7" ry="4.5" fill="var(--map-river)"/><ellipse cx="'+co[0]+'" cy="'+co[1]+'" rx="3.5" ry="3" fill="var(--map-river)"/>'
+   +mapTxt(il[0]+10,il[1]+3,L('일로팡고 호수','Lago de Ilopango'),8,'start')
+   +mapTxt(40,22,'Guatemala',10)+mapTxt(270,16,'Honduras',10)+mapTxt(255,214,L('태평양','Océano Pacífico'),10);
+  var g={};zs.forEach(function(x){var c=x.z.city;g[c]=g[c]||{n:0,first:x.z,on:false};g[c].n+=x.avail;if(x.z.id===S.zone)g[c].on=true});
+  Object.keys(g).forEach(function(c){var ct=CITY[c],z=g[c].first,ll=c==='metro'?[ct.lat,ct.lon]:[z.lat,z.lon];h+=pinSvg(c==='metro'?'metro':z.id,c==='metro'?'city':'zone',pPais(ll[0],ll[1]),g[c].n,g[c].on,!g[c].n,ct[lang],ct)});
+  return h+'</svg>'}
+ var roads=[
+  [[13.672,-89.33],[13.6735,-89.287],[13.690,-89.245],[13.700,-89.215],[13.6985,-89.19],[13.7016,-89.1525],[13.70,-89.11]],
+  [[13.678,-89.253],[13.682,-89.21],[13.690,-89.17]],
+  [[13.6985,-89.19],[13.66,-89.18],[13.62,-89.17]],
+  [[13.6735,-89.287],[13.62,-89.30]],
+  [[13.700,-89.215],[13.705,-89.245],[13.712,-89.262]],
+  [[13.6985,-89.19],[13.72,-89.20],[13.78,-89.20]]
+ ].map(function(r){return path(r,pMetro)}).join(' ');
+ var v=pMetro(13.735,-89.287);
+ var h='<svg viewBox="0 0 400 280" role="img" aria-label="'+L('산살바도르 수도권 대여 존 지도','Mapa de zonas del Gran San Salvador')+'"><rect width="400" height="280" fill="var(--map-land)"/>'
+  +'<circle cx="'+v[0]+'" cy="'+v[1]+'" r="52" fill="var(--map-park)"/><circle cx="'+v[0]+'" cy="'+v[1]+'" r="32" fill="var(--map-park)" stroke="var(--map-road-edge)" stroke-dasharray="3 3"/><circle cx="'+v[0]+'" cy="'+v[1]+'" r="12" fill="var(--map-land)" stroke="var(--map-road-edge)"/>'
+  +'<path d="'+roads+'" stroke="var(--map-road-edge)" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="'+roads+'" stroke="var(--map-road)" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+  +mapTxt(v[0],v[1]+4,L('산살바도르 화산','Volcán de San Salvador'),9)
+  +mapTxt(pMetro(13.684,-89.305)[0],pMetro(13.684,-89.305)[1],'CA-1',8)
+  +mapTxt(394,pMetro(13.672,-89.12)[1],L('일로팡고 호수 →','Lago de Ilopango →'),8,'end')
+  +mapTxt(pMetro(13.635,-89.17)[0]+6,272,L('↓ 공항 (약 40km)','↓ Aeropuerto (≈40 km)'),8,'start')
+  +mapTxt(pMetro(13.635,-89.30)[0]+6,272,L('↓ 해변','↓ Playas'),8,'start');
+ zs.filter(function(x){return x.z.city==='metro'}).forEach(function(x){h+=pinSvg(x.z.id,'zone',pMetro(x.z.lat,x.z.lon),x.avail,x.z.id===S.zone,!x.avail,x.z.name)});
  return h+'</svg>'}
 
 function vShare(){
@@ -550,11 +592,11 @@ function vShare(){
    +'<label class="fld"><span>'+L('이용 시간','Duración')+'</span><select id="f_dur">'+durs.map(function(d){return '<option value="'+d+'"'+(d===S.dur?' selected':'')+'>'+(d<60?d+L('분','min'):(d/60)+L('시간','h'))+'</option>'}).join('')+'</select></label>');
   h+=noPerm('share');
   if(!S.me.license||!S.me.license.ok)h+='<div class="banner warning"><span class="ic">!</span><span>'+L('예약하려면 운전면허 등록이 필요합니다. (만 21세 이상, 취득 1년 이상)','Necesita registrar su licencia para reservar (21+ años, 1+ año de licencia).')+'</span><button class="btn sm" data-tab="my">'+L('등록하기','Registrar')+'</button></div>';
-  h+='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))"><div class="card stack"><div class="mapbox">'+mapSvg(zs)+'</div><p class="muted small">'+fdt(r.start)+' → '+fdt(r.end)+'</p></div>'
+  h+='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))"><div class="card stack"><div class="row between"><h3>'+L('지도','Mapa')+'</h3><div class="seg">'+[['metro',L('수도권','Gran San Salvador')],['pais',L('전국','Todo El Salvador')]].map(function(m){return '<button data-act="mapv" data-v="'+m[0]+'" class="'+(S.mapv===m[0]?'on':'')+'">'+m[1]+'</button>'}).join('')+'</div></div><div class="mapbox">'+mapSvg(zs)+'</div><p class="muted small">'+fdt(r.start)+' → '+fdt(r.end)+'</p></div>'
    +'<div class="card stack"><h3>'+L('대여 존','Zonas')+'</h3><div class="zones">'+zs.map(function(x){return '<button class="zone'+(x.z.id===S.zone?' on':'')+'" data-act="zone" data-v="'+x.z.id+'"><span><b>'+esc(zname(x.z))+'</b><br><span class="muted small">'+esc(x.z.area)+'</span></span><span class="badge '+(x.avail?'success':'plain')+'">'+L('가능 ','Libres ')+x.avail+'/'+x.total+'</span></button>'}).join('')+'</div></div></div>';
   h+='<div class="row between"><h2>'+esc(zname(z))+' · '+L('차량','vehículos')+'</h2><span class="muted small">'+L('예상 요금은 라이트 보험 기준, 주행요금 별도','Precio con seguro básico; km aparte')+'</span></div>';
   h+='<div class="cars">'+cs.map(function(x){var c=x.c;return '<div class="car"><div class="top"><div class="ico"><svg width="34" height="20" viewBox="0 0 34 20" aria-hidden="true"><path d="M2 13l2.6-6.4A3 3 0 0 1 7.4 4.7h19.2a3 3 0 0 1 2.8 1.9L32 13v3.5a1 1 0 0 1-1 1h-2.5a1 1 0 0 1-1-1V15h-21v1.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" fill="var(--color-accent)"/></svg></div><div style="min-width:0"><h3>'+esc(c.model)+'</h3><div class="row small muted"><span class="badge plain">'+tname(c.type)+'</span><span>'+esc(c.plate)+'</span></div></div></div>'
-   +'<div class="row between small"><span class="muted">'+(c.type==='전기'?L('배터리','Batería'):L('연료','Combustible'))+' '+c.fuel+'%</span><span class="muted">'+won(c.rate10)+'/10'+L('분','min')+' · '+won(c.km)+'/km</span></div><div class="meter"><i style="width:'+c.fuel+'%"></i></div>'
+   +'<div class="row between small"><span class="muted">'+(c.type==='ev'?L('배터리','Batería'):L('연료','Combustible'))+' '+c.fuel+'%</span><span class="muted">'+won(c.rate10)+'/10'+L('분','min')+' · '+won(c.km)+'/km</span></div><div class="meter"><i style="width:'+c.fuel+'%"></i></div>'
    +'<div class="row between"><span class="price">'+won(x.q.total)+'</span>'+(c.status!=='ok'?'<span class="badge warning">'+L('정비 중','En taller')+'</span>':x.free?'<button class="btn primary sm" data-act="bookDlg" data-v="'+c.id+'"'+(can('share')?'':' disabled')+'>'+L('예약','Reservar')+'</button>':'<span class="badge error">'+L('예약 마감','Ocupado')+'</span>')+'</div></div>'}).join('')+'</div>';
   h+='<div class="card small muted">'+L('취소 수수료: 시작 24시간 전까지 무료 · 1시간 전까지 대여료의 10% · 그 이후 50%. 반납 후 주행거리(km)만큼 주행요금이 추가 결제되고, 결제액의 1%가 포인트로 쌓입니다.','Cancelación: gratis hasta 24 h antes · 10 % hasta 1 h antes · 50 % después. Tras devolver se cobra la tarifa por km y se acumula 1 % en puntos.')+'</div>';
   setMain(h);
@@ -565,7 +607,7 @@ function bookDlg(carId){
  var body='<dl class="dl-list"><dt>'+L('차량','Vehículo')+'</dt><dd>'+esc(c.model)+' · '+esc(c.plate)+'</dd><dt>'+L('대여 존','Zona')+'</dt><dd>'+esc(zname(zone(c.zone)))+'</dd><dt>'+L('시간','Horario')+'</dt><dd>'+fdt(r.start)+' → '+fdt(r.end)+'</dd></dl>'
  +'<h3>'+L('차량 손해 면책 상품','Cobertura de daños')+'</h3>'
  +Object.keys(INS).map(function(k,i){var x=INS[k];return '<label class="opt"><input type="radio" name="ins" value="'+k+'"'+(k==='std'?' checked':'')+'><span><b>'+x[lang]+'</b> · '+(x.ph?'+'+won(x.ph)+L('/시간','/h'):L('추가 요금 없음','sin coste extra'))+'<br><span class="muted small">'+L('사고 시 자기부담금 최대 ','Franquicia máx. ')+won(x.ded)+'</span></span></label>'}).join('')
- +'<label class="fld"><span>'+L('포인트 사용 (보유 ','Usar puntos (tiene ')+S.me.points.toLocaleString()+'P)</span><input id="f_pts" type="number" min="0" max="'+S.me.points+'" step="100" value="0" inputmode="numeric"></label>'
+ +'<label class="fld"><span>'+L('포인트 사용 (보유 ','Usar puntos (tiene ')+S.me.points.toLocaleString()+'P · 100P = $1.00)</span><input id="f_pts" type="number" min="0" max="'+S.me.points+'" step="100" value="0" inputmode="numeric"></label>'
  +'<dl class="dl-list" id="qt"></dl>'
  +'<p class="muted small">'+L('결제 카드: ','Tarjeta: ')+(S.me.card?'**** '+esc(S.me.card):'<b>'+L('미등록','sin registrar')+'</b>')+'</p>';
  openDlg(L('예약 확인','Confirmar reserva'),body,'<button class="btn" data-act="close">'+L('닫기','Cerrar')+'</button><button class="btn primary" data-act="book" data-v="'+c.id+'">'+L('결제하고 예약','Pagar y reservar')+'</button>');
@@ -582,30 +624,28 @@ function returnDlg(id){
 
 function rideRow(r,driver,left,act){
  var d=new Date(r.depart);
- return '<div class="ride"><div class="time">'+hm(d)+'<small>'+(d.getMonth()+1)+'/'+d.getDate()+'('+DOW[lang][d.getDay()]+')</small></div>'
+ return '<div class="ride"><div class="time">'+hm(d)+'<small>'+dm(d)+'</small></div>'
  +'<div class="stack" style="gap:6px;min-width:0"><div class="route"><i></i><b>'+esc(r.from)+'</b><span class="ln"></span><span></span><i class="e"></i><b>'+esc(r.to)+'</b></div>'
  +'<div class="row small muted"><span class="avatar">'+esc(driver.slice(0,1))+'</span><span>'+esc(driver)+'</span>'+(r.car?'<span>· '+esc(r.car)+'</span>':'')+'<span>· <b class="num" style="color:var(--color-text-primary)">'+won(r.price)+'</b>/'+L('인','pers.')+'</span>'+(left!=null?'<span class="badge '+(left?'info':'plain')+'">'+L('남은 좌석 ','Plazas ')+left+'</span>':'')+'</div>'
  +(r.note?'<p class="small muted">“'+esc(r.note)+'”</p>':'')+'</div>'+(act||'')+'</div>'}
 
 function vPool(){
  var seg='<div class="seg" role="tablist">'+[['find',L('탑승 찾기','Buscar')],['post',L('운행 등록','Ofrecer viaje')],['mine',L('내 카풀','Mis viajes')]].map(function(s){return '<button data-act="pool" data-v="'+s[0]+'" class="'+(S.pool===s[0]?'on':'')+'">'+s[1]+'</button>'}).join('')+'</div>';
- var top=head(L('카풀','Carpool'),L('같은 방향으로 출퇴근하는 사람과 좌석을 나눠 탑니다.','Comparta asientos con quien va en su misma dirección.'))+seg+noPerm('pool');
+ var top=head(L('카풀','Carpool'),L('같은 방향으로 가는 사람과 좌석과 비용을 나눕니다. 도시 간 이동(산타아나·산미겔 ↔ 산살바도르)도 됩니다.','Comparta asiento y gastos con quien va en su misma dirección, también entre ciudades (Santa Ana, San Miguel ↔ San Salvador).'))+seg+noPerm('pool');
  if(S.pool==='find'){
   api('findRides',S.find).then(function(list){
-   var h=top+'<div class="card"><div class="cols"><label class="fld"><span>'+L('출발지','Origen')+'</span><input id="f_from" value="'+esc(S.find.from)+'" placeholder="'+L('예: 판교','Ej.: Pangyo')+'"></label><label class="fld"><span>'+L('도착지','Destino')+'</span><input id="f_to" value="'+esc(S.find.to)+'" placeholder="'+L('예: 강남','Ej.: Gangnam')+'"></label><div class="fld"><span>&nbsp;</span><button class="btn primary" data-act="findGo">'+L('검색','Buscar')+'</button></div></div></div>';
+   var h=top+'<div class="card"><div class="cols"><label class="fld"><span>'+L('출발지','Origen')+'</span><input id="f_from" value="'+esc(S.find.from)+'" list="places" placeholder="'+L('예: Santa Tecla','Ej.: Santa Tecla')+'"></label><label class="fld"><span>'+L('도착지','Destino')+'</span><input id="f_to" value="'+esc(S.find.to)+'" list="places" placeholder="'+L('예: San Salvador','Ej.: San Salvador')+'"></label><div class="fld"><span>&nbsp;</span><button class="btn primary" data-act="findGo">'+L('검색','Buscar')+'</button></div></div></div>';
    h+=list.length?'<div class="stack">'+list.map(function(x){var act='<div class="act">'+(x.mine?'<span class="badge plain">'+L('내 운행','Mi viaje')+'</span>':x.req?stBadge(x.req.status):'<button class="btn primary sm" data-act="reqDlg" data-v="'+x.r.id+'"'+(x.left&&can('pool')?'':' disabled')+'>'+L('탑승 요청','Solicitar')+'</button>')+'</div>';return rideRow(x.r,x.driver,x.left,act)}).join('')+'</div>'
     :'<div class="card muted">'+L('조건에 맞는 운행이 없습니다. 출발지·도착지를 짧게 입력해 보세요.','No hay viajes. Pruebe con palabras más cortas.')+'</div>';
    setMain(h)}).catch(fail)}
  else if(S.pool==='post'){
-  var dflt=nextWeekday(1,8,0);
-  setMain(top+'<div class="banner"><span class="ic">i</span><span>'+L('국내법상 자가용 카풀은 <b>평일 07:00~09:00, 18:00~20:00</b>에만 유상으로 운행할 수 있습니다. 이 시간을 벗어나면 등록되지 않습니다.','Por ley, el carpool de pago solo se permite <b>días laborables 07:00-09:00 y 18:00-20:00</b>. Fuera de ese horario no se puede publicar.')+'</span></div>'
-   +'<div class="card stack"><div class="cols"><label class="fld"><span>'+L('출발지','Origen')+'</span><input id="p_from" maxlength="40" placeholder="'+L('예: 판교역 1번 출구','Ej.: Pangyo salida 1')+'"></label><label class="fld"><span>'+L('도착지','Destino')+'</span><input id="p_to" maxlength="40" placeholder="'+L('예: 강남역 사거리','Ej.: Cruce de Gangnam')+'"></label>'
-   +'<label class="fld"><span>'+L('출발 날짜','Fecha')+'</span><input id="p_date" type="date" value="'+ymd(dflt)+'"></label><label class="fld"><span>'+L('출발 시간','Hora')+'</span><input id="p_time" type="time" step="300" value="08:00"></label>'
-   +'<label class="fld"><span>'+L('좌석 수','Plazas')+'</span><select id="p_seats">'+[1,2,3,4].map(function(n){return '<option'+(n===3?' selected':'')+'>'+n+'</option>'}).join('')+'</select></label><label class="fld"><span>'+L('1인 요금 (원)','Precio por persona (KRW)')+'</span><input id="p_price" type="number" min="1000" max="30000" step="500" value="4000" inputmode="numeric"></label>'
-   +'<label class="fld"><span>'+L('차량 (차종·색상)','Vehículo (modelo, color)')+'</span><input id="p_car" maxlength="30" placeholder="'+L('예: 아반떼 (흰색)','Ej.: Avante blanco')+'"></label><label class="fld"><span>'+L('한마디','Nota')+'</span><input id="p_note" maxlength="80" placeholder="'+L('예: 정시 출발합니다','Ej.: Salgo puntual')+'"></label></div>'
-   +'<p class="small muted" id="p_chk"></p><div class="row"><button class="btn primary" data-act="post"'+(can('pool')?'':' disabled')+'>'+L('운행 등록','Publicar viaje')+'</button></div></div>');
-  var chk=function(){var t=new Date($('#p_date').value+'T'+$('#p_time').value).getTime();var ok=isCommute(t);$('#p_chk').innerHTML=ok?'<span class="badge success">'+L('출퇴근 허용 시간입니다','Dentro del horario permitido')+'</span>':'<span class="badge error">'+L('허용 시간이 아닙니다','Fuera del horario permitido')+'</span>'};
-  $('#p_date').addEventListener('change',chk);$('#p_time').addEventListener('change',chk);chk();
+  var dflt=nextWeekday(1,6,30);
+  setMain(top+'<div class="banner"><span class="ic">i</span><span>'+L('카풀은 <b>비용 나눠 내기</b>입니다. 1인 요금은 기름값·통행료를 나누는 수준($0.50~$30.00)으로 정하세요. 영업용 택시처럼 운행하면 안 됩니다.','El carpool es para <b>compartir gastos</b>. Fije un precio por persona que cubra gasolina y peaje ($0.50-$30.00); no es un servicio de taxi.')+'</span></div>'
+   +'<div class="card stack"><div class="cols"><label class="fld"><span>'+L('출발지','Origen')+'</span><input id="p_from" maxlength="40" list="places" placeholder="'+L('예: Santa Tecla (Paseo El Carmen)','Ej.: Santa Tecla (Paseo El Carmen)')+'"></label><label class="fld"><span>'+L('도착지','Destino')+'</span><input id="p_to" maxlength="40" list="places" placeholder="'+L('예: San Salvador (Metrocentro)','Ej.: San Salvador (Metrocentro)')+'"></label>'
+   +'<label class="fld"><span>'+L('출발 날짜','Fecha')+'</span><input id="p_date" type="date" value="'+ymd(dflt)+'"></label><label class="fld"><span>'+L('출발 시간','Hora')+'</span><input id="p_time" type="time" step="300" value="06:30"></label>'
+   +'<label class="fld"><span>'+L('좌석 수','Plazas')+'</span><select id="p_seats">'+[1,2,3,4].map(function(n){return '<option'+(n===3?' selected':'')+'>'+n+'</option>'}).join('')+'</select></label><label class="fld"><span>'+L('1인 요금 (US$)','Precio por persona (US$)')+'</span><input id="p_price" type="number" min="0.5" max="30" step="0.25" value="1.50" inputmode="decimal"></label>'
+   +'<label class="fld"><span>'+L('차량 (차종·색상)','Vehículo (modelo, color)')+'</span><input id="p_car" maxlength="30" placeholder="'+L('예: Toyota Corolla 흰색','Ej.: Toyota Corolla blanco')+'"></label><label class="fld"><span>'+L('한마디','Nota')+'</span><input id="p_note" maxlength="80" placeholder="'+L('예: 정시에 출발합니다','Ej.: Salgo puntual')+'"></label></div>'
+   +'<div class="row"><button class="btn primary" data-act="post"'+(can('pool')?'':' disabled')+'>'+L('운행 등록','Publicar viaje')+'</button></div></div>');
  } else {
   Promise.all([api('myRides'),api('history')]).then(function(a){
    var mr=a[0],rq=a[1].rq.filter(function(x){return x.r.status==='open'&&(x.q.status==='pending'||x.q.status==='accepted')});
@@ -640,8 +680,8 @@ function vMy(){
   var lic=me.license;
   var h=head(L('내 정보','Mi cuenta'),esc(me.name)+' · '+esc(me.id));
   h+='<div class="grid k4"><div class="kpi"><div class="k">'+L('보유 포인트','Puntos')+'</div><div class="v">'+me.points.toLocaleString()+' P</div></div><div class="kpi"><div class="k">'+L('운전면허','Licencia')+'</div><div class="v" style="font-size:16px">'+(lic&&lic.ok?'<span class="badge success">'+L('인증 완료','Verificada')+'</span>':'<span class="badge warning">'+L('미등록','Pendiente')+'</span>')+'</div></div><div class="kpi"><div class="k">'+L('결제 카드','Tarjeta')+'</div><div class="v" style="font-size:16px">'+(me.card?'**** '+esc(me.card):'<span class="badge warning">'+L('미등록','Pendiente')+'</span>')+'</div></div><div class="kpi"><div class="k">'+L('이용 권한','Permisos')+'</div><div class="v" style="font-size:13px;font-weight:600">'+L('카쉐어링 ','Carsharing ')+permTxt(me.perms.share)+'<br>'+L('카풀 ','Carpool ')+permTxt(me.perms.pool)+'</div></div></div>';
-  h+='<div class="grid"><div class="card stack"><h2>'+L('운전면허 등록','Licencia de conducir')+'</h2>'+(lic?'<p class="small muted">'+L('등록된 번호: ','Registrada: ')+esc(lic.no)+'</p>':'')+'<div class="cols"><label class="fld"><span>'+L('면허번호','Número')+'</span><input id="l_no" placeholder="11-15-123456-01" maxlength="15" inputmode="numeric"></label><label class="fld"><span>'+L('면허 취득일','Fecha de expedición')+'</span><input id="l_is" type="date"></label><label class="fld"><span>'+L('생년월일','Fecha de nacimiento')+'</span><input id="l_bi" type="date"></label></div><p class="small muted">'+L('실제 서비스에서는 도로교통공단 면허 진위 확인을 거칩니다. 만 21세 이상, 취득 1년 이상이어야 합니다.','En el servicio real se verifica con la autoridad de tráfico. Requisitos: 21+ años y 1+ año de licencia.')+'</p><div class="row"><button class="btn primary" data-act="saveLic">'+L('면허 등록','Registrar licencia')+'</button></div></div>'
-   +'<div class="card stack"><h2>'+L('결제 카드','Tarjeta de pago')+'</h2><label class="fld"><span>'+L('카드번호','Número de tarjeta')+'</span><input id="c_no" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000"></label><p class="small muted">'+L('시뮬레이션은 뒤 4자리만 저장합니다. 실제 서비스는 PG사 빌링키를 씁니다.','La simulación guarda solo los 4 últimos dígitos. El servicio real usa una pasarela de pago.')+'</p><div class="row"><button class="btn primary" data-act="saveCard">'+L('카드 등록','Registrar tarjeta')+'</button></div></div>'
+  h+='<div class="grid"><div class="card stack"><h2>'+L('운전면허 등록','Licencia de conducir')+'</h2>'+(lic?'<p class="small muted">'+L('등록된 번호: ','Registrada: ')+esc(lic.no)+'</p>':'')+'<div class="cols"><label class="fld"><span>'+L('면허 종류','Tipo de licencia')+'</span><select id="l_kind"><option value="sv">'+L('엘살바도르 면허 (DUI 번호)','Salvadoreña (n.º de DUI)')+'</option><option value="ext">'+L('외국 면허 (관광객 90일)','Extranjera (turistas, 90 días)')+'</option></select></label><label class="fld"><span>'+L('면허번호','Número')+'</span><input id="l_no" placeholder="04512345-6" maxlength="20"></label><label class="fld"><span>'+L('면허 취득일','Fecha de expedición')+'</span><input id="l_is" type="date"></label><label class="fld"><span>'+L('생년월일','Fecha de nacimiento')+'</span><input id="l_bi" type="date"></label></div><p class="small muted">'+L('엘살바도르 면허번호는 DUI 번호와 같습니다. 실제 서비스에서는 VMT(교통부)·SERTRACEN 자료로 진위를 확인합니다. 서비스 정책: 만 21세 이상, 취득 1년 이상.','En El Salvador el número de licencia es el mismo del DUI. En el servicio real se verifica con VMT/SERTRACEN. Política: 21+ años y 1+ año de licencia.')+'</p><div class="row"><button class="btn primary" data-act="saveLic">'+L('면허 등록','Registrar licencia')+'</button></div></div>'
+   +'<div class="card stack"><h2>'+L('결제 카드','Tarjeta de pago')+'</h2><label class="fld"><span>'+L('카드번호','Número de tarjeta')+'</span><input id="c_no" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000"></label><p class="small muted">'+L('시뮬레이션은 뒤 4자리만 저장합니다. 실제 서비스는 현지 카드 결제 대행사(게이트웨이)의 토큰을 씁니다.','La simulación guarda solo los 4 últimos dígitos. El servicio real usa el token de una pasarela de pago local.')+'</p><div class="row"><button class="btn primary" data-act="saveCard">'+L('카드 등록','Registrar tarjeta')+'</button></div></div>'
    +'<div class="card stack"><h2>'+L('계정','Cuenta')+'</h2><div class="row"><button class="btn" data-act="pwdlg">'+L('비밀번호 변경','Cambiar contraseña')+'</button><button class="btn" data-act="logout">'+L('로그아웃','Cerrar sesión')+'</button></div><p class="small muted">'+L('30분 동안 아무 작업이 없으면 자동으로 로그아웃됩니다.','La sesión se cierra tras 30 minutos sin actividad.')+'</p></div></div>';
   setMain(h)}).catch(fail)}
 function permTxt(p){return p==='w'?L('사용','uso'):p==='r'?L('보기만','solo ver'):L('없음','no')}
@@ -655,7 +695,7 @@ function vAdmin(){
    +'<div class="card stack"><h2>'+L('회원 목록','Usuarios')+' <span class="muted small">'+us.length+'</span></h2><div class="tw"><table><thead><tr><th>'+L('아이디','Usuario')+'</th><th>'+L('이름','Nombre')+'</th><th>'+L('메일','Correo')+'</th><th>'+L('역할','Rol')+'</th><th>'+L('카쉐어링','Carsharing')+'</th><th>'+L('카풀','Carpool')+'</th><th>'+L('면허','Licencia')+'</th><th>'+L('상태','Estado')+'</th><th class="n">P</th><th>'+L('관리','Acciones')+'</th></tr></thead><tbody>'
    +us.map(function(u){return '<tr><td>'+esc(u.id)+'</td><td>'+esc(u.name)+'</td><td>'+esc(u.email)+'</td><td><select data-act="uset" data-id="'+esc(u.id)+'" data-f="role"'+(u.id===S.me.id?' disabled':'')+'><option value="user">'+L('일반','Usuario')+'</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>'+L('관리자','Admin')+'</option></select></td><td><select data-act="uset" data-id="'+esc(u.id)+'" data-f="share">'+opt(u.perms.share)+'</select></td><td><select data-act="uset" data-id="'+esc(u.id)+'" data-f="pool">'+opt(u.perms.pool)+'</select></td><td>'+(u.lic?'<span class="badge success">OK</span>':'<span class="badge plain">-</span>')+'</td><td>'+(u.locked?'<span class="badge error">'+L('잠김','Bloqueado')+'</span>':u.first?'<span class="badge warning">'+L('첫 로그인 전','Sin activar')+'</span>':'<span class="badge success">'+L('정상','Activo')+'</span>')+'</td><td class="n">'+u.points.toLocaleString()+'</td><td><div class="row">'+(u.locked?'<button class="btn sm" data-act="uset" data-id="'+esc(u.id)+'" data-f="unlock">'+L('잠금 해제','Desbloquear')+'</button>':'')+'<button class="btn sm ghost" data-act="uset" data-id="'+esc(u.id)+'" data-f="reset">'+L('비번 초기화','Restablecer')+'</button></div></td></tr>'}).join('')+'</tbody></table></div></div>')}).catch(fail)}
  else if(S.adm==='cars'){api('admCars').then(function(d){
-  setMain(top+'<div class="card stack"><h2>'+L('차량 추가','Nuevo vehículo')+'</h2><div class="cols"><label class="fld"><span>'+L('존','Zona')+'</span><select id="v_z">'+d.zones.map(function(z){return '<option value="'+z.id+'">'+esc(zname(z))+'</option>'}).join('')+'</select></label><label class="fld"><span>'+L('차종','Modelo')+'</span><input id="v_m" maxlength="20" placeholder="'+L('예: 니로','Ej.: Niro')+'"></label><label class="fld"><span>'+L('등급','Categoría')+'</span><select id="v_t">'+['경차','준중형','중형','SUV','전기'].map(function(t){return '<option value="'+t+'">'+tname(t)+'</option>'}).join('')+'</select></label><label class="fld"><span>'+L('번호판','Matrícula')+'</span><input id="v_p" maxlength="12" placeholder="12가 3456"></label></div><div class="row"><button class="btn primary" data-act="addCar">'+L('차량 추가','Añadir')+'</button></div></div>'
+  setMain(top+'<div class="card stack"><h2>'+L('차량 추가','Nuevo vehículo')+'</h2><div class="cols"><label class="fld"><span>'+L('존','Zona')+'</span><select id="v_z">'+d.zones.map(function(z){return '<option value="'+z.id+'">'+esc(zname(z))+'</option>'}).join('')+'</select></label><label class="fld"><span>'+L('차종','Modelo')+'</span><input id="v_m" maxlength="20" placeholder="'+L('예: Kia Soluto','Ej.: Kia Soluto')+'"></label><label class="fld"><span>'+L('등급','Categoría')+'</span><select id="v_t">'+Object.keys(TYPES).map(function(t){return '<option value="'+t+'">'+tname(t)+'</option>'}).join('')+'</select></label><label class="fld"><span>'+L('번호판','Matrícula')+'</span><input id="v_p" maxlength="12" placeholder="P 123-456"></label></div><div class="row"><button class="btn primary" data-act="addCar">'+L('차량 추가','Añadir')+'</button></div></div>'
    +'<div class="card stack"><h2>'+L('차량 목록','Flota')+' <span class="muted small">'+d.cars.length+'</span></h2><div class="tw"><table><thead><tr><th>'+L('번호판','Matrícula')+'</th><th>'+L('차종','Modelo')+'</th><th>'+L('등급','Categoría')+'</th><th>'+L('존','Zona')+'</th><th class="n">'+L('10분 요금','Por 10 min')+'</th><th class="n">'+L('km 요금','Por km')+'</th><th class="n">'+L('연료','Comb.')+'</th><th class="n">'+L('예약 수','Reservas')+'</th><th>'+L('상태','Estado')+'</th><th>'+L('관리','Acción')+'</th></tr></thead><tbody>'
    +d.cars.map(function(x){var c=x.c;return '<tr><td>'+esc(c.plate)+'</td><td>'+esc(c.model)+'</td><td>'+tname(c.type)+'</td><td>'+esc(x.zone)+'</td><td class="n">'+won(c.rate10)+'</td><td class="n">'+won(c.km)+'</td><td class="n">'+c.fuel+'%</td><td class="n">'+x.cnt+'</td><td>'+(x.busy?'<span class="badge success">'+L('이용 중','En uso')+'</span>':c.status==='ok'?'<span class="badge info">'+L('대기','Libre')+'</span>':'<span class="badge warning">'+L('정비 중','En taller')+'</span>')+'</td><td><button class="btn sm" data-act="carToggle" data-v="'+c.id+'">'+(c.status==='ok'?L('정비 보내기','A taller'):L('운행 복귀','Reactivar'))+'</button></td></tr>'}).join('')+'</tbody></table></div></div>')}).catch(fail)}
  else if(S.adm==='ops'){api('admStats').then(function(d){
@@ -718,6 +758,8 @@ document.addEventListener('click',function(e){
  case 'firstPw':api('firstPw',{otp:S.otp.otp,pw:$('#n_pw').value,pw2:$('#n_pw2').value}).then(function(){S.otp=null;S.auth='login';toast(L('비밀번호를 바꿨습니다','Contraseña cambiada'));afterLogin()}).catch(function(e){toast(errMsg(e));if(e.code==='OTP'){S.auth='login';render()}});break;
  case 'go':var p=v.split(':');S.tab=p[0];S.pool=p[1]||S.pool;render();break;
  case 'zone':S.zone=v;vShare();break;
+ case 'city':S.mapv='metro';vShare();break;
+ case 'mapv':S.mapv=v;vShare();break;
  case 'bookDlg':bookDlg(v);break;
  case 'book':var r=selRange();api('book',{car:v,start:r.start,end:r.end,ins:(document.querySelector('input[name=ins]:checked')||{}).value,pts:Math.max(0,+($('#f_pts').value)||0)}).then(function(){closeDlg();toast(L('예약했습니다. 홈에서 스마트키를 받을 수 있습니다.','Reservado. Reciba la llave digital en Inicio.'));S.tab='home';render()}).catch(fail);break;
  case 'start':api('startUse',{id:id}).then(function(){toast(L('이용을 시작합니다. 스마트키가 활성화되었습니다.','¡Buen viaje! Llave digital activada.'));render()}).catch(fail);break;
@@ -732,12 +774,12 @@ document.addEventListener('click',function(e){
  case 'findGo':S.find={from:$('#f_from').value,to:$('#f_to').value};vPool();break;
  case 'reqDlg':var rd=ride(v);openDlg(L('탑승 요청','Solicitar plaza'),rideRow(rd,U(rd.driver).name,seatsLeft(rd),'')+'<div class="cols"><label class="fld"><span>'+L('좌석 수','Plazas')+'</span><select id="q_n">'+[1,2,3,4].filter(function(n){return n<=seatsLeft(rd)}).map(function(n){return '<option>'+n+'</option>'}).join('')+'</select></label><label class="fld"><span>'+L('운전자에게 한마디','Mensaje')+'</span><input id="q_m" maxlength="80" placeholder="'+L('예: 1번 출구 앞에서 기다릴게요','Ej.: Espero en la salida 1')+'"></label></div><p class="small muted">'+L('운전자가 수락하면 확정되고, 운행 완료 후 등록한 카드로 결제됩니다.','Se confirma cuando el conductor acepta y se cobra al terminar el viaje.')+'</p>','<button class="btn" data-act="close">'+L('닫기','Cerrar')+'</button><button class="btn primary" data-act="reqGo" data-v="'+v+'">'+L('요청 보내기','Enviar')+'</button>');break;
  case 'reqGo':api('requestRide',{ride:v,seats:$('#q_n').value,msg:$('#q_m').value}).then(function(){closeDlg();toast(L('요청했습니다. 운전자 수락을 기다려 주세요.','Solicitud enviada. Espere la respuesta.'));vPool()}).catch(fail);break;
- case 'post':var dep=new Date($('#p_date').value+'T'+$('#p_time').value).getTime();api('postRide',{from:$('#p_from').value,to:$('#p_to').value,depart:dep,seats:$('#p_seats').value,price:$('#p_price').value,car:$('#p_car').value,note:$('#p_note').value}).then(function(){toast(L('운행을 등록했습니다','Viaje publicado'));S.pool='mine';vPool()}).catch(fail);break;
+ case 'post':var dep=new Date($('#p_date').value+'T'+$('#p_time').value).getTime();api('postRide',{from:$('#p_from').value,to:$('#p_to').value,depart:dep,seats:$('#p_seats').value,price:Math.round(parseFloat($('#p_price').value)*100),car:$('#p_car').value,note:$('#p_note').value}).then(function(){toast(L('운행을 등록했습니다','Viaje publicado'));S.pool='mine';vPool()}).catch(fail);break;
  case 'decide':api('decideReq',{id:id,ok:v==='1'}).then(function(){toast(v==='1'?L('수락했습니다','Aceptado'):L('거절했습니다','Rechazado'));vPool()}).catch(fail);break;
  case 'reqCancel':api('cancelReq',{id:v}).then(function(){toast(L('요청을 취소했습니다','Solicitud cancelada'));vPool()}).catch(fail);break;
  case 'rideDone':api('completeRide',{id:v}).then(function(r){toast(L('운행 완료 · 정산 예정 ','Viaje terminado · a cobrar ')+won(r.earn));vPool()}).catch(fail);break;
  case 'rideCancel':api('cancelRide',{id:v}).then(function(){toast(L('운행을 취소하고 탑승자에게 알렸습니다','Viaje cancelado; pasajeros avisados'));vPool()}).catch(fail);break;
- case 'saveLic':api('saveLicense',{no:$('#l_no').value,issued:$('#l_is').value,birth:$('#l_bi').value}).then(function(){toast(L('면허를 확인했습니다','Licencia verificada'));vMy()}).catch(function(e){fail(e);vMy()});break;
+ case 'saveLic':api('saveLicense',{kind:$('#l_kind').value,no:$('#l_no').value,issued:$('#l_is').value,birth:$('#l_bi').value}).then(function(){toast(L('면허를 확인했습니다','Licencia verificada'));vMy()}).catch(function(e){fail(e);vMy()});break;
  case 'saveCard':api('saveCard',{no:$('#c_no').value}).then(function(){toast(L('카드를 등록했습니다','Tarjeta registrada'));vMy()}).catch(fail);break;
  case 'pwdlg':closeSheet();openDlg(L('비밀번호 변경','Cambiar contraseña'),'<label class="fld"><span>'+L('현재 비밀번호','Contraseña actual')+'</span><input id="c_old" type="password" autocomplete="current-password"></label><label class="fld"><span>'+L('새 비밀번호','Nueva')+'</span><input id="c_pw" type="password" autocomplete="new-password"></label><label class="fld"><span>'+L('새 비밀번호 확인','Repetir')+'</span><input id="c_pw2" type="password" autocomplete="new-password"></label><p class="small muted">'+L('8자 이상, 영문·숫자·특수문자 포함','8+ caracteres con letras, números y símbolo')+'</p>','<button class="btn" data-act="close">'+L('닫기','Cerrar')+'</button><button class="btn primary" data-act="pwGo">'+L('변경','Cambiar')+'</button>');break;
  case 'pwGo':api('changePw',{old:$('#c_old').value,pw:$('#c_pw').value,pw2:$('#c_pw2').value}).then(function(){closeDlg();toast(L('비밀번호를 바꿨습니다','Contraseña cambiada'))}).catch(fail);break;
